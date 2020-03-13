@@ -66,6 +66,12 @@ module type S = sig
     val update_guest_agent_features : Host.guest_agent_feature list -> unit
 
     val upgrade_cpu_features : int64 array -> bool -> int64 array
+    val policy_calc_compatible : string -> string -> string * bool * string option
+    val policy_is_compatible : string -> string -> string * bool * string option
+    val xc_cpu_policy_get_system : int -> string
+    val deserialise_policy : string -> int64 array
+    val serialise_policy : int64 array -> string
+    val upgrade_cpu_policy : string -> bool -> string
   end
 
   module VM : sig

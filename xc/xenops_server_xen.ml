@@ -842,6 +842,28 @@ let upgrade_for_migration ~xc features =
   with Xenctrlext.Unix_error (Unix.ENOSYS, _) ->
     debug "xc_get_msr_arch_caps: ENOSYS"
 
+let i2b i =
+  match Base64.encode (Int64.to_string i) with
+    Ok x -> x
+  | _ -> failwith ("Failed to Base64 Encode: " ^ Int64.to_string i)
+
+let serialise policy =
+  Array.fold_left (fun s acc ->
+      match s with
+        "" -> acc
+      | _ -> match acc with
+          "" -> s
+        | _ -> s ^ "," ^ acc
+    ) "" (Array.map i2b policy)
+
+let deserialise policy =
+  let decode e = match Base64.decode e with
+      Ok policy -> Int64.of_string policy
+    | _ -> failwith ("Failed to Base64 Decode: " ^ e)
+  in
+  List.map decode (String.split_on_char ',' policy)
+  |> Array.of_list
+
 module HOST = struct
   include Xenops_server_skeleton.HOST
 
@@ -897,6 +919,13 @@ module HOST = struct
     in
     with_xc_and_xs (fun xc xs ->
         let open Xenctrl in
+        let xen_sysctl_cpu_policy = Hashtbl.create 6 in
+        Hashtbl.add xen_sysctl_cpu_policy "XEN_SYSCTL_cpu_policy_raw" 0;
+        Hashtbl.add xen_sysctl_cpu_policy "XEN_SYSCTL_cpu_policy_host" 1;
+        Hashtbl.add xen_sysctl_cpu_policy "XEN_SYSCTL_cpu_policy_pv_max" 2;
+        Hashtbl.add xen_sysctl_cpu_policy "XEN_SYSCTL_cpu_policy_hvm_max" 3;
+        Hashtbl.add xen_sysctl_cpu_policy "XEN_SYSCTL_cpu_policy_pv_default" 4;
+        Hashtbl.add xen_sysctl_cpu_policy "XEN_SYSCTL_cpu_policy_hvm_default" 5;
         let p = physinfo xc in
         let cpu_count = p.nr_cpus in
         let socket_count =
@@ -906,6 +935,10 @@ module HOST = struct
         let features_pv = get_cpu_featureset xc Featureset_pv in
         let features_hvm = get_cpu_featureset xc Featureset_hvm in
         let features_oldstyle = oldstyle_featuremask xc in
+        let policy_hvm = serialise (Xenctrlext.xc_cpu_policy_get_system xc
+          (Hashtbl.find xen_sysctl_cpu_policy "XEN_SYSCTL_cpu_policy_hvm_default")) in
+        let policy_pv = serialise (Xenctrlext.xc_cpu_policy_get_system xc
+          (Hashtbl.find xen_sysctl_cpu_policy "XEN_SYSCTL_cpu_policy_pv_default")) in
         (* Compatibility with Xen 4.7 *)
         (* This is temporary until new CPUID/MSR levelling work is done *)
         let cpuid_common_1d_features = 0x0183f3ffL in
@@ -954,6 +987,8 @@ module HOST = struct
             ; features_oldstyle
             ; features_hvm_host
             ; features_pv_host
+            ; policy_pv
+            ; policy_hvm
             }
         ; hypervisor=
             {Host.version= xen_version_string; capabilities= xen_capabilities}
@@ -1011,6 +1046,19 @@ module HOST = struct
   let upgrade_cpu_features features is_hvm =
     with_xc_and_xs (fun xc _ ->
         Xenctrl.upgrade_oldstyle_featuremask xc features is_hvm)
+
+  let upgrade_cpu_policy cpu_policy is_hvm =
+    with_xc_and_xs
+      (fun xc _ -> Xenctrlext.upgrade_cpu_policy xc (deserialise cpu_policy) is_hvm |> serialise)
+
+  let policy_calc_compatible left right =
+    with_xc_and_xs
+      (fun xc _ -> let (p, b, m) = Xenctrlext.cpu_policy_calc_compatible xc (deserialise left) (deserialise right) in
+      (serialise p, b, m))
+
+  let policy_is_compatible left right =
+    with_xc_and_xs
+      (fun xc _ -> Xenctrlext.cpu_policy_is_compatible xc left right)
 end
 
 let dB_m = Mutex.create ()

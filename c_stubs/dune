@@ -15,7 +15,7 @@
  (libraries xenctrl)
  (foreign_stubs
   (language c)
-  (names tuntap_stubs xenctrlext_stubs)
+  (names tuntap_stubs xenctrlext_stubs msr_stubs)
   (flags (:include xentoollog_flags.sexp))
  )
 )

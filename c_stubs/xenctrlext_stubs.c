@@ -35,6 +35,7 @@
 /* From xenctrl_stubs */
 #define ERROR_STRLEN 1024
 
+#define POLICY_DELIMITER ","
 static void raise_unix_errno_msg(int err_code, const char *err_msg)
 {
         CAMLparam0();
@@ -459,6 +460,7 @@ CAMLprim value stub_xenctrlext_get_msr_arch_caps(value xch) {
 		failwith_xc(_H(xch));
 	CAMLreturn(caml_copy_int64(val));
 }
+
 
 /*
 * Local variables:
