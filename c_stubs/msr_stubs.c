@@ -49,6 +49,9 @@ typedef struct serialised_policy {
     char* leaves;
     char* msrs;
 } serialised_policy_t;
+
+// Need xen definition of  apolicy
+
 #define POLICY_VERSION      = 0
 #define POLICY_MAX_LEAVES   = 1
 #define POLICY_MAX_MSRS     = 2
@@ -180,7 +183,23 @@ CAMLprim value
 stub_cpu_policy_is_compatible(value xch, value left, value right)
 {
     CAMLparam3(xch, left, right);
-    int retval = xc_cpu_policy_is_compatible(_H(xch), &left, &right);
+    uint32_t max_leaves = 0;
+    uint32_t max_msrs = 0;
+    if (xc_get_cpu_policy_size(_H(xch), &max_leaves, &max_msrs))
+        failwith_xc(_H(xch));
+
+    xen_cpuid_leaf_t *leaves_left = calloc(max_leaves, sizeof(xen_cpuid_leaf_t));
+    xen_msr_entry_t *msrs_left    = calloc(max_leaves, sizeof(xen_cpuid_leaf_t));
+
+    xen_cpuid_leaf_t *leaves_right = calloc(max_leaves, sizeof(xen_cpuid_leaf_t));
+    xen_msr_entry_t *msrs_right    = calloc(max_leaves, sizeof(xen_cpuid_leaf_t));
+
+    deserialise_policy(xch, leaves_left, msrs_left, left);
+    deserialise_policy(xch, leaves_right, msrs_right, right);
+
+    left_policy  = {leaves_left, msrs_left};
+    right_policy = {leaves_right, msrs_right};
+    int retval = xc_cpu_policy_is_compatible(_H(xch), &left_policy, &right_policy);
     CAMLreturn(Val_int(retval));
 }
 

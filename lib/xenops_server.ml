@@ -2470,7 +2470,7 @@ module HOST = struct
   let xc_cpu_policy_get_system _ dbg id =
     Debug.with_thread_associated dbg
       (fun () ->
-        debug "Host.xc_cpu_policy_get_system";
+        debug "HOST.xc_cpu_policy_get_system";
         let module B = (val get_backend () : S) in
         B.HOST.xc_cpu_policy_get_system id
       ) ()
