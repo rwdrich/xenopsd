@@ -116,6 +116,8 @@ serialise_policy(value xch, xen_cpuid_leaf_t* leaves, xen_msr_entry_t* msrs)
     Store_field(policy, POLICY_CAML_LEAVES, caml_leaves);
     Store_field(policy, POLICY_CAML_MSRS,   caml_msrs);
 
+    policy = compress(policy)
+
     CAMLreturn(policy);
 }
 
@@ -125,6 +127,8 @@ deserialise_policy(value xch, xen_cpuid_leaf_t* leaves, xen_msr_entry_t* msrs, v
     CAMLparam2(xch, p);
     uint32_t max_leaves = 0;
     uint32_t max_msrs = 0;
+
+    p = uncompress(p)
 
     if (xc_get_cpu_policy_size(_H(xch), &max_leaves, &max_msrs))
         failwith_xc(_H(xch));
@@ -137,6 +141,16 @@ deserialise_policy(value xch, xen_cpuid_leaf_t* leaves, xen_msr_entry_t* msrs, v
     memcpy(msrs,    p.msrs, max_msrs);
 
     return 0;
+}
+
+compress(policy)
+{
+    return policy
+}
+
+uncompress(policy)
+{
+    return policy
 }
 
 // Hypercalls
@@ -158,13 +172,15 @@ stub_xenctrlext_get_max_nr_cpus(value xch)
 }
 
 CAMLprim value
-stub_xc_cpu_policy_get_system(value xch, value idx, value arr)
+stub_xc_cpu_policy_get_system(value xch, value idx, value policy)
 {
-    CAMLparam3(xch, idx, arr);
-    int retval = xc_cpu_policy_get_system(_H(xch), Int_val(idx), &arr);
+    CAMLparam3(xch, idx, policy);
+    int retval = xc_cpu_policy_get_system(_H(xch), Int_val(idx), &policy);
     if (retval)
         failwith_xc(_H(xch));
-    CAMLreturn(Val_int(arr));
+    s_policy = caml_alloc_tuple(CAML_MSR_T_SIZE);
+    s_policy = serialise_policy(xch, policy);
+    CAMLreturn(s_policy);
 }
 
 // Given two policies, return the intersection of their compatibility as a policy
