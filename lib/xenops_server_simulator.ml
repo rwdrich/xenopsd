@@ -372,7 +372,7 @@ module HOST = struct
   let deserialise_policy _ = [| |]
   let upgrade_cpu_policy _ _ = ""
   let policy_calc_compatible _ _ = ("", false, None)
-  let policy_is_compatible _ _ = false
+  let policy_is_compatible _ _ = ("", false, None)
   let xc_cpu_policy_get_system _ = ""
 end
 module VM = struct
