@@ -916,7 +916,7 @@ module HOST = struct
 
   let policy_is_compatible left right =
     with_xc_and_xs
-      (fun xc _ -> Xenctrlext.cpu_policy_is_compatible xc (deserialise left) (deserialise right))
+      (fun xc _ -> Xenctrlext.cpu_policy_is_compatible xc left right)
 end
 
 let dB_m = Mutex.create ()

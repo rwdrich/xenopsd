@@ -50,7 +50,28 @@ typedef struct serialised_policy {
     char* msrs;
 } serialised_policy_t;
 
-// Need xen definition of  apolicy
+
+typedef struct xen_cpuid_leaf {
+    uint32_t leaf, subleaf;
+    uint32_t a, b, c, d;
+} xen_cpuid_leaf_t;
+
+typedef struct xen_msr_entry {
+    uint32_t idx;
+    uint32_t flags; /* Reserved MBZ. */
+    uint64_t val;
+} xen_msr_entry_y;
+
+typedef struct policy {
+    xen_cpuid_leaf* leaves;
+    xen_msr_entry* msrs;
+} policy_t;
+
+typedef struct policy_compatibility {
+    char* p;
+    bool eq;
+    char* reason;
+} policy_compatibility_t;
 
 #define POLICY_VERSION      = 0
 #define POLICY_MAX_LEAVES   = 1
@@ -143,12 +164,12 @@ deserialise_policy(value xch, xen_cpuid_leaf_t* leaves, xen_msr_entry_t* msrs, v
     return 0;
 }
 
-compress(policy)
+char* compress(char* policy)
 {
     return policy
 }
 
-uncompress(policy)
+char* uncompress(char* policy)
 {
     return policy
 }
@@ -195,6 +216,7 @@ stub_cpu_policy_calc_compatible(value xch, value left, value right)
 }
 
 // Given two policies, return if they are compatible
+// policy -> policy -> (policy, bool, string option) perhaps
 CAMLprim value
 stub_cpu_policy_is_compatible(value xch, value left, value right)
 {
@@ -216,7 +238,10 @@ stub_cpu_policy_is_compatible(value xch, value left, value right)
     left_policy  = {leaves_left, msrs_left};
     right_policy = {leaves_right, msrs_right};
     int retval = xc_cpu_policy_is_compatible(_H(xch), &left_policy, &right_policy);
-    CAMLreturn(Val_int(retval));
+
+    serialised = serialise_policy(left_policy);
+    policy_compatibility_t ret = {serialised, retval, ""};
+    CAMLreturn(ret);
 }
 
 // Given a serialised policy, return a serialised upgraded policy

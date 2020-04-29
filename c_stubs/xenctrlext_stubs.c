@@ -387,11 +387,6 @@ DEFINE_XEN_GUEST_HANDLE(xen_msr_entry_t);
 #define XEN_SYSCTL_cpu_policy_host 1
 #endif
 
-typedef struct serialised_policy {
-    char* leaves;
-    char* msrs;
-} serialised_policy_t;
-
 __attribute__((weak))
 int xc_get_cpu_policy_size(xc_interface *xch, uint32_t *nr_leaves,
 			   uint32_t *nr_msrs);
