@@ -79,6 +79,6 @@ external xc_cpu_policy_get_system: handle -> int -> int64 array = "stub_xc_cpu_p
 
 external cpu_policy_calc_compatible : handle -> int64 array -> int64 array -> int64 array * bool * string option = "stub_cpu_policy_calc_compatible"
 
-external cpu_policy_is_compatible : handle -> int64 array -> int64 array -> bool = "stub_cpu_policy_is_compatible"
+external cpu_policy_is_compatible : handle -> string -> string -> string * bool * string option = "stub_cpu_policy_is_compatible"
 
 external upgrade_cpu_policy : handle -> int64 array -> bool -> int64 array = "stub_upgrade_cpu_policy"
