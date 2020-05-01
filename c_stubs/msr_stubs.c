@@ -81,14 +81,6 @@ typedef struct policy {
     xen_msr_entry_t* msrs;
 } policy_t;
 
-typedef struct serialised_policy {
-    int policy_version;
-    int max_leaves;
-    int max_msrs;
-    char* leaves;
-    char* msrs;
-} serialised_policy_t;
-
 /*
 typedef struct xen_cpuid_leaf {
     uint32_t leaf, subleaf;
@@ -141,65 +133,6 @@ static void failwith_xc(xc_interface *xch)
     raise_unix_errno_msg(real_errno, error_str);
 }
 
-int compress(serialised_policy_t policy)
-{
-    return 0;
-}
-
-int uncompress(serialised_policy_t* policy)
-{
-    return 0;
-}
-
-CAMLprim value
-serialise_policy(value xch, policy_t* p)
-{
-    CAMLparam1(xch);
-    CAMLlocal3(serialised_policy, caml_leaves, caml_msrs);
-    uint32_t max_leaves = 0;
-    uint32_t max_msrs   = 0;
-
-    if (xc_get_cpu_policy_size(_H(xch), &max_leaves, &max_msrs))
-        failwith_xc(_H(xch));
-
-    serialised_policy = caml_alloc_tuple(CAML_MSR_T_SIZE);
-
-    caml_leaves = caml_alloc_string(max_leaves * sizeof(xen_cpuid_leaf_t));
-    caml_msrs =   caml_alloc_string(max_msrs   * sizeof(xen_msr_entry_t ));
-
-    memcpy(String_val(caml_leaves), p->leaves, max_leaves * sizeof(xen_cpuid_leaf_t));
-    memcpy(String_val(caml_msrs),   p->msrs,   max_msrs   * sizeof(xen_msr_entry_t));
-
-    Store_field(serialised_policy, POLICY_VERSION,     CAML_MSR_VERSION);
-    Store_field(serialised_policy, POLICY_MAX_LEAVES,  max_leaves);
-    Store_field(serialised_policy, POLICY_MAX_MSRS,    max_msrs);
-    Store_field(serialised_policy, POLICY_CAML_LEAVES, caml_leaves);
-    Store_field(serialised_policy, POLICY_CAML_MSRS,   caml_msrs);
-
-    CAMLreturn(serialised_policy);
-}
-
-CAMLprim value
-deserialise_policy(value xch, xen_cpuid_leaf_t* leaves, xen_msr_entry_t* msrs, policy_t* p)
-{
-    CAMLparam1(xch);
-    uint32_t max_leaves = 0;
-    uint32_t max_msrs = 0;
-
-    if (xc_get_cpu_policy_size(_H(xch), &max_leaves, &max_msrs))
-        failwith_xc(_H(xch));
-
-    // These were passed in, so assume already allocated?
-    // xen_cpuid_leaf_t *leaves = calloc(max_leaves, sizeof(xen_cpuid_leaf_t));
-    // xen_msr_entry_t *msrs = calloc(max_leaves, sizeof(xen_cpuid_leaf_t));
-
-    memcpy(leaves,  &p->leaves, max_leaves);
-    memcpy(msrs,    &p->msrs, max_msrs);
-
-    return 0;
-}
-
-
 
 // Hypercalls
 CAMLprim value stub_xenctrlext_get_max_nr_cpus(value xch)
@@ -218,16 +151,15 @@ CAMLprim value stub_xenctrlext_get_max_nr_cpus(value xch)
     CAMLreturn(Val_int(c_physinfo.max_cpu_id + 1));
 }
 
-CAMLprim value stub_xc_cpu_policy_get_system(value xch, value idx, policy_t* policy)
+CAMLprim value stub_xc_cpu_policy_get_system(value xch, value idx, value policy)
 {
-    CAMLparam2(xch, idx);
+    CAMLparam3(xch, idx, policy);
     int retval = xc_cpu_policy_get_system(_H(xch), Int_val(idx), &policy);
     if (retval)
         failwith_xc(_H(xch));
-    serialised_policy_t s_policy = serialise_policy(xch, policy);
-    CAMLreturn(s_policy);
+    CAMLreturn(policy);
 }
-/*
+
 // Given two policies, return the intersection of their compatibility as a policy
 CAMLprim value stub_cpu_policy_calc_compatible(value xch, value left, value right)
 {
@@ -235,7 +167,7 @@ CAMLprim value stub_cpu_policy_calc_compatible(value xch, value left, value righ
     int retval = xc_cpu_policy_calc_compatible(_H(xch), &left, &right);
     if (retval)
         failwith_xc(_H(xch));
-    CAMLreturn(Val_int(left));
+    CAMLreturn(left);
 }
 
 // Given two policies, return if they are compatible
@@ -248,48 +180,22 @@ CAMLprim value stub_cpu_policy_is_compatible(value xch, value left, value right)
     if (xc_get_cpu_policy_size(_H(xch), &max_leaves, &max_msrs))
         failwith_xc(_H(xch));
 
-    xen_cpuid_leaf_t *leaves_left = calloc(max_leaves, sizeof(xen_cpuid_leaf_t));
-    xen_msr_entry_t *msrs_left    = calloc(max_leaves, sizeof(xen_cpuid_leaf_t));
-
-    xen_cpuid_leaf_t *leaves_right = calloc(max_leaves, sizeof(xen_cpuid_leaf_t));
-    xen_msr_entry_t *msrs_right    = calloc(max_leaves, sizeof(xen_cpuid_leaf_t));
-
-    //deserialise_policy(xch, leaves_left, msrs_left, left);
-    //deserialise_policy(xch, leaves_right, msrs_right, right);
-
-    policy_t left_policy  = {leaves_left, msrs_left};
-    policy_t right_policy = {leaves_right, msrs_right};
-    int retval = xc_cpu_policy_is_compatible(_H(xch), &left_policy, &right_policy);
-
-    serialised_policy_t serialised_left = serialise_policy(xch, left_policy);
-    serialised_policy_t serialised_right = serialise_policy(xch, right_policy);
-    policy_compatibility_t ret = {serialised_left, retval, ""};
-    CAMLreturn(ret);
-}
-
-// Given a serialised policy, return a serialised upgraded policy
-CAMLprim value stub_upgrade_cpu_policy(value xch, serialised_policy_t* policy)
-{
-    CAMLparam1(xch);
-    uint32_t max_leaves = 0;
-    uint32_t max_msrs = 0;
-
-    if (xc_get_cpu_policy_size(_H(xch), &max_leaves, &max_msrs))
-        failwith_xc(_H(xch));
-
-    xen_cpuid_leaf_t *leaves = calloc(max_leaves, sizeof(xen_cpuid_leaf_t));
-    xen_msr_entry_t *msrs = calloc(max_leaves, sizeof(xen_cpuid_leaf_t));
-
-    //deserialise_policy(xch, leaves, msrs, policy);
-
-    int retval = xc_upgrade_cpu_policy(_H(xch), &leaves,  &msrs);
+    int retval = xc_cpu_policy_is_compatible(_H(xch), &left, &right);
     if (retval)
         failwith_xc(_H(xch));
 
-    policy_t built_policy = {leaves; msrs};
-    serialised_policy_t serialised_policy = serialise_policy(xch, built_policy);
+    CAMLreturn(left);
+}
+
+// Given a policy, return an upgraded policy
+CAMLprim value stub_upgrade_cpu_policy(value xch, value policy)
+{
+    CAMLparam2(xch, policy);
+
+    int retval = xc_upgrade_cpu_policy(_H(xch), policy);
+    if (retval)
+        failwith_xc(_H(xch));
 
     CAMLreturn(policy);
 }
 
-*/
