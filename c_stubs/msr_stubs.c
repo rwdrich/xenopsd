@@ -74,26 +74,11 @@ __attribute__((weak))
 #define MSR_ARCH_CAPABILITIES 0x10a
 
 
-
 // Type definitions
 typedef struct policy {
     xen_cpuid_leaf_t* leaves;
     xen_msr_entry_t* msrs;
 } policy_t;
-
-/*
-typedef struct xen_cpuid_leaf {
-    uint32_t leaf, subleaf;
-    uint32_t a, b, c, d;
-} xen_cpuid_leaf_t;
-
-typedef struct xen_msr_entry {
-    uint32_t idx;
-    uint32_t flags; /* Reserved MBZ. */
-/*
-    uint64_t val;
-} xen_msr_entry_t;
-*/
 
 typedef struct policy_compatibility {
     char* p;
@@ -184,6 +169,7 @@ CAMLprim value stub_cpu_policy_is_compatible(value xch, value left, value right)
     if (retval)
         failwith_xc(_H(xch));
 
+    // Possibly need to construct a record return here
     CAMLreturn(left);
 }
 
@@ -192,10 +178,10 @@ CAMLprim value stub_upgrade_cpu_policy(value xch, value policy)
 {
     CAMLparam2(xch, policy);
 
-    int retval = xc_upgrade_cpu_policy(_H(xch), policy);
+    int retval = xc_upgrade_cpu_policy(_H(xch), &policy);
     if (retval)
         failwith_xc(_H(xch));
-
+    // Xen should put the return into the passed in policy
     CAMLreturn(policy);
 }
 
