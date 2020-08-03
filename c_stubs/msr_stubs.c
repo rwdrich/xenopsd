@@ -118,28 +118,11 @@ static void failwith_xc(xc_interface *xch)
     raise_unix_errno_msg(real_errno, error_str);
 }
 
-
-// Hypercalls
-CAMLprim value stub_xenctrlext_get_max_nr_cpus(value xch)
-{
-    CAMLparam1(xch);
-    xc_physinfo_t c_physinfo;
-    int r;
-
-    caml_enter_blocking_section();
-    r = xc_physinfo(_H(xch), &c_physinfo);
-    caml_leave_blocking_section();
-
-    if (r)
-        failwith_xc(_H(xch));
-
-    CAMLreturn(Val_int(c_physinfo.max_cpu_id + 1));
-}
-
 CAMLprim value stub_xc_cpu_policy_get_system(value xch, value idx, value policy)
 {
     CAMLparam3(xch, idx, policy);
-    int retval = xc_cpu_policy_get_system(_H(xch), Int_val(idx), &policy);
+    //int retval = xc_cpu_policy_get_system(_H(xch), Int_val(idx), &policy);
+    int retval = 0;
     if (retval)
         failwith_xc(_H(xch));
     CAMLreturn(policy);
@@ -149,7 +132,8 @@ CAMLprim value stub_xc_cpu_policy_get_system(value xch, value idx, value policy)
 CAMLprim value stub_cpu_policy_calc_compatible(value xch, value left, value right)
 {
     CAMLparam3(xch, left, right);
-    int retval = xc_cpu_policy_calc_compatible(_H(xch), &left, &right);
+    //int retval = xc_cpu_policy_calc_compatible(_H(xch), &left, &right);
+    int retval = 0;
     if (retval)
         failwith_xc(_H(xch));
     CAMLreturn(left);
@@ -162,10 +146,11 @@ CAMLprim value stub_cpu_policy_is_compatible(value xch, value left, value right)
     CAMLparam3(xch, left, right);
     uint32_t max_leaves = 0;
     uint32_t max_msrs = 0;
-    if (xc_get_cpu_policy_size(_H(xch), &max_leaves, &max_msrs))
-        failwith_xc(_H(xch));
+    //if (xc_get_cpu_policy_size(_H(xch), &max_leaves, &max_msrs))
+    //    failwith_xc(_H(xch));
 
-    int retval = xc_cpu_policy_is_compatible(_H(xch), &left, &right);
+    //int retval = xc_cpu_policy_is_compatible(_H(xch), &left, &right);
+    int retval = 0;
     if (retval)
         failwith_xc(_H(xch));
 
@@ -178,7 +163,8 @@ CAMLprim value stub_upgrade_cpu_policy(value xch, value policy)
 {
     CAMLparam2(xch, policy);
 
-    int retval = xc_upgrade_cpu_policy(_H(xch), &policy);
+    //int retval = xc_upgrade_cpu_policy(_H(xch), &policy);
+    int retval = 0;
     if (retval)
         failwith_xc(_H(xch));
     // Xen should put the return into the passed in policy
