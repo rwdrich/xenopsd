@@ -507,8 +507,8 @@ module HOST = struct
   let serialise_policy _ = ""
   let deserialise_policy _ = [| |]
   let upgrade_cpu_policy _ _ = ""
-  let policy_calc_compatible _ _ = ("", false, None)
-  let policy_is_compatible _ _ = ("", false, None)
+  let policy_calc_compatible _ _ = ("some-policy", true, Some "Message")
+  let policy_is_compatible _ _ = ("some-policy", true, Some "Message")
   let xc_cpu_policy_get_system _ = ""
 end
 
