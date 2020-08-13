@@ -547,7 +547,7 @@ let add_wait (task: Xenops_task.t) ~xc ~xs device =
         try
             Hotplug.wait_for_plug task ~xs device;
         with Hotplug.Device_timeout _ ->
-            if not (Generic.run_hotplug_scripts device) then begin
+            if not (!Xenopsd.run_hotplug_scripts device) then begin
                 D.error "CA-342571 WORKAROUND CODE TRIGGERED, DO NOT SHIP THIS PATCH" ;
                 Hotplug.run_hotplug_script device ["add"] ;
             end
