@@ -43,6 +43,9 @@ let vnc_port_path domid = sprintf "/local/domain/%d/console/vnc-port" domid
 
 let tc_port_path domid = sprintf "/local/domain/%d/console/tc-port" domid
 
+let run_hotplug_scripts (x : device) =
+  !Xenopsd.run_hotplug_scripts || x.backend.domid > 0
+
 (* Oxenstored's transaction conflict algorithm will cause parallel but separate device
    creation transactions to abort and retry, leading to livelock while starting lots of
    VMs. Work around this by serialising these transactions for now. *)
@@ -547,7 +550,7 @@ let add_wait (task: Xenops_task.t) ~xc ~xs device =
         try
             Hotplug.wait_for_plug task ~xs device;
         with Hotplug.Device_timeout _ ->
-            if not (!Xenopsd.run_hotplug_scripts device) then begin
+            if not (Generic.run_hotplug_scripts device) then begin
                 D.error "CA-342571 WORKAROUND CODE TRIGGERED, DO NOT SHIP THIS PATCH" ;
                 Hotplug.run_hotplug_script device ["add"] ;
             end
